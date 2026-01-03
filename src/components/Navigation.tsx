@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, MessageCircle, Eye, PenTool, BookOpen } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, MessageCircle, Eye, PenTool, BookOpen, LogIn, LogOut, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, signOut, loading } = useAuth();
 
   const navItems = [
     { label: 'Feed', to: '/feed', icon: PenTool },
@@ -14,6 +17,11 @@ const Navigation = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b-[3px] border-foreground">
@@ -45,11 +53,40 @@ const Navigation = () => {
             ))}
           </div>
 
-          {/* Join Button */}
-          <div className="hidden md:block">
-            <button className="btn-sketch-primary text-lg">
-              ✏️ Join the Chaos!
-            </button>
+          {/* Auth Button */}
+          <div className="hidden md:flex items-center gap-3">
+            {loading ? (
+              <div className="w-8 h-8 sketch-border animate-pulse bg-muted" />
+            ) : user ? (
+              <div className="flex items-center gap-3">
+                <Link 
+                  to="/profile" 
+                  className="flex items-center gap-2 btn-sketch py-2 px-3"
+                >
+                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden sketch-border-sm">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={16} strokeWidth={2.5} />
+                    )}
+                  </div>
+                  <span className="font-comic text-sm max-w-[100px] truncate">
+                    {profile?.username || 'User'}
+                  </span>
+                </Link>
+                <button 
+                  onClick={handleSignOut}
+                  className="btn-sketch py-2 px-3 text-sm"
+                >
+                  <LogOut size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <Link to="/auth" className="btn-sketch-primary text-lg">
+                <LogIn className="inline-block w-5 h-5 mr-1" strokeWidth={2.5} />
+                Join the Chaos!
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -78,9 +115,38 @@ const Navigation = () => {
                   {item.label}
                 </Link>
               ))}
-              <button className="btn-sketch-primary py-3 mt-2">
-                ✏️ Join the Chaos!
-              </button>
+              {user ? (
+                <>
+                  <div className="flex items-center justify-center gap-2 py-2 border-t-2 border-dashed border-foreground/30 mt-2">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden sketch-border-sm">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={18} strokeWidth={2.5} />
+                      )}
+                    </div>
+                    <span className="font-comic">{profile?.username || 'User'}</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      handleSignOut();
+                      setIsOpen(false);
+                    }}
+                    className="btn-sketch py-3"
+                  >
+                    <LogOut className="inline-block w-5 h-5 mr-2" strokeWidth={2.5} />
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <Link 
+                  to="/auth" 
+                  className="btn-sketch-primary py-3 mt-2"
+                  onClick={() => setIsOpen(false)}
+                >
+                  ✏️ Join the Chaos!
+                </Link>
+              )}
             </div>
           </div>
         )}

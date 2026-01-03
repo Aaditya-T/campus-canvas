@@ -1,50 +1,27 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { PenTool, TrendingUp, Clock, Flame, Loader2 } from 'lucide-react';
 import PostCard from './PostCard';
-import { PenTool, TrendingUp, Clock, Flame } from 'lucide-react';
-
-const posts = [
-  {
-    author: "midnight_coder",
-    content: "Just pulled an all-nighter for a project that's due in 3 hours. Send help. And coffee. Mostly coffee. ☕️💀",
-    timestamp: "2 mins ago",
-    likes: 42,
-    comments: 8,
-    tags: ["engineering", "help", "nocturnal"]
-  },
-  {
-    author: "library_ghost",
-    content: "Found the BEST study spot on campus - 4th floor library, back corner near the broken AC. It's freezing but nobody goes there. You're welcome 📚",
-    timestamp: "15 mins ago",
-    likes: 127,
-    comments: 23,
-    tags: ["protip", "studyspots"]
-  },
-  {
-    author: "ramen_enthusiast",
-    content: "The new cafeteria ramen is actually fire?? Since when do they know seasoning??? Am I dreaming????",
-    timestamp: "1 hour ago",
-    likes: 89,
-    comments: 31,
-    tags: ["food", "blessed", "finally"]
-  },
-  {
-    author: "procrastination_pro",
-    content: "POV: You have 3 assignments due tomorrow and you're reading random posts on this app instead. We're all in this together fam 🫡",
-    timestamp: "2 hours ago",
-    likes: 234,
-    comments: 56,
-    tags: ["relatable", "crying"]
-  },
-  {
-    author: "campus_cat",
-    content: "Spotted the orange tabby near the science building again! He let me pet him for like 2 whole seconds before running away. Progress! 🐱",
-    timestamp: "3 hours ago",
-    likes: 312,
-    comments: 47,
-    tags: ["campuscat", "blessed", "furry"]
-  },
-];
+import { usePosts } from '@/hooks/usePosts';
+import { useAuth } from '@/hooks/useAuth';
 
 const PostsFeed = () => {
+  const [newPostContent, setNewPostContent] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const { posts, loading, createPost, toggleLike, deletePost } = usePosts();
+  const { user } = useAuth();
+
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim()) return;
+    
+    setIsPosting(true);
+    const { error } = await createPost(newPostContent);
+    if (!error) {
+      setNewPostContent('');
+    }
+    setIsPosting(false);
+  };
+
   return (
     <section id="feed" className="py-16">
       <div className="container mx-auto px-4">
@@ -77,37 +54,84 @@ const PostsFeed = () => {
         </div>
 
         {/* Create Post CTA */}
-        <div className="sketch-border bg-card p-4 mb-8 flex flex-col sm:flex-row items-center gap-4">
-          <div className="w-12 h-12 sketch-border bg-accent/20 flex items-center justify-center shrink-0">
-            <PenTool size={24} strokeWidth={2.5} />
+        {user ? (
+          <div className="sketch-border bg-card p-4 mb-8 flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-12 h-12 sketch-border bg-accent/20 flex items-center justify-center shrink-0">
+              <PenTool size={24} strokeWidth={2.5} />
+            </div>
+            <textarea
+              value={newPostContent}
+              onChange={(e) => setNewPostContent(e.target.value)}
+              placeholder="What's on your mind? Spill the tea... ☕"
+              className="flex-1 w-full bg-transparent text-lg font-comic placeholder:text-muted-foreground focus:outline-none resize-none min-h-[60px]"
+              rows={2}
+            />
+            <button 
+              onClick={handleCreatePost}
+              disabled={isPosting || !newPostContent.trim()}
+              className="btn-sketch-primary py-2 px-6 text-xl shrink-0 disabled:opacity-50 flex items-center gap-2"
+            >
+              {isPosting ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                'Post it!'
+              )}
+            </button>
           </div>
-          <input
-            type="text"
-            placeholder="What's on your mind? Spill the tea... ☕"
-            className="flex-1 w-full bg-transparent text-lg font-comic placeholder:text-muted-foreground focus:outline-none"
-          />
-          <button className="btn-sketch-primary py-2 px-6 text-xl shrink-0">
-            Post it!
-          </button>
-        </div>
+        ) : (
+          <div className="sketch-border bg-card p-6 mb-8 text-center">
+            <p className="font-comic text-lg text-muted-foreground mb-3">
+              Want to share your thoughts? 🤔
+            </p>
+            <Link to="/auth" className="btn-sketch-primary py-2 px-6 text-lg inline-block">
+              ✏️ Login to Post
+            </Link>
+          </div>
+        )}
 
         {/* Posts Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {posts.map((post, index) => (
-            <PostCard
-              key={index}
-              {...post}
-              tilt={index}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-16">
+            <Loader2 size={48} className="animate-spin mx-auto mb-4 text-primary" />
+            <p className="font-comic text-lg text-muted-foreground">Loading the chaos...</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-16 sketch-border bg-card">
+            <p className="font-hand text-3xl mb-4">🦗 *cricket sounds*</p>
+            <p className="font-comic text-lg text-muted-foreground mb-4">
+              No posts yet. Be the first to break the silence!
+            </p>
+            {!user && (
+              <Link to="/auth" className="btn-sketch-primary py-2 px-6 text-lg inline-block">
+                ✏️ Login to Post
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {posts.map((post, index) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                tilt={index}
+                onLike={toggleLike}
+                onDelete={deletePost}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Load More */}
-        <div className="text-center mt-8">
-          <button className="btn-sketch text-xl">
-            Load more chaos ↓
-          </button>
-        </div>
+        {posts.length > 0 && (
+          <div className="text-center mt-8">
+            <button className="btn-sketch text-xl">
+              Load more chaos ↓
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
