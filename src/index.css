@@ -2,95 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Paper & Ink Base */
+    --background: 40 33% 96%;
+    --foreground: 0 0% 8%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 45 40% 94%;
+    --card-foreground: 0 0% 8%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 40 33% 96%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Ink Black Primary */
+    --primary: 0 0% 8%;
+    --primary-foreground: 45 40% 94%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Highlighter Yellow */
+    --secondary: 48 100% 67%;
+    --secondary-foreground: 0 0% 8%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Paper Muted */
+    --muted: 40 20% 90%;
+    --muted-foreground: 0 0% 35%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Highlighter Blue */
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Marker Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Neon Green */
+    --success: 142 76% 50%;
+    --success-foreground: 0 0% 8%;
 
-    --radius: 0.5rem;
+    /* Neon Pink */
+    --neon: 330 100% 60%;
+    --neon-foreground: 0 0% 100%;
 
-    --sidebar-background: 0 0% 98%;
+    --border: 0 0% 8%;
+    --input: 0 0% 8%;
+    --ring: 0 0% 8%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --radius: 0px;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sketch-specific */
+    --sketch-border: 3px;
+    --paper-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 8%;
+    --foreground: 45 40% 94%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 12%;
+    --card-foreground: 45 40% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 45 40% 94%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 45 40% 94%;
+    --primary-foreground: 0 0% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 48 100% 67%;
+    --secondary-foreground: 0 0% 8%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 45 40% 94%;
+    --input: 45 40% 94%;
+    --ring: 45 40% 94%;
   }
 }
 
@@ -101,5 +91,205 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Comic Neue', system-ui, sans-serif;
+    background-image: var(--paper-texture);
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Caveat', cursive;
+  }
+}
+
+@layer components {
+  /* Sketch Border Effect */
+  .sketch-border {
+    @apply border-[3px] border-foreground;
+    border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  }
+
+  .sketch-border-sm {
+    @apply border-2 border-foreground;
+    border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  }
+
+  /* Sticky Note Effect */
+  .sticky-note {
+    @apply bg-secondary p-4;
+    transform: rotate(-1deg);
+    box-shadow: 4px 4px 0 hsl(var(--foreground));
+  }
+
+  .sticky-note-pink {
+    @apply bg-neon/20 p-4;
+    transform: rotate(2deg);
+    box-shadow: 4px 4px 0 hsl(var(--foreground));
+  }
+
+  .sticky-note-blue {
+    @apply bg-accent/20 p-4;
+    transform: rotate(-2deg);
+    box-shadow: 4px 4px 0 hsl(var(--foreground));
+  }
+
+  /* Comic Speech Bubble */
+  .speech-bubble {
+    @apply relative bg-card sketch-border p-4;
+  }
+
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -15px;
+    left: 30px;
+    border-width: 15px 10px 0;
+    border-style: solid;
+    border-color: hsl(var(--foreground)) transparent;
+  }
+
+  .speech-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 33px;
+    border-width: 12px 7px 0;
+    border-style: solid;
+    border-color: hsl(var(--card)) transparent;
+  }
+
+  /* Marker Underline */
+  .marker-underline {
+    background-image: linear-gradient(120deg, hsl(var(--secondary)) 0%, hsl(var(--secondary)) 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 40%;
+    background-position: 0 90%;
+  }
+
+  .marker-underline-red {
+    background-image: linear-gradient(120deg, hsl(var(--destructive) / 0.3) 0%, hsl(var(--destructive) / 0.3) 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 40%;
+    background-position: 0 90%;
+  }
+
+  .marker-underline-blue {
+    background-image: linear-gradient(120deg, hsl(var(--accent) / 0.3) 0%, hsl(var(--accent) / 0.3) 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 40%;
+    background-position: 0 90%;
+  }
+
+  /* Notebook Lines */
+  .notebook-lines {
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 27px,
+      hsl(var(--accent) / 0.2) 27px,
+      hsl(var(--accent) / 0.2) 28px
+    );
+    background-position: 0 10px;
+  }
+
+  /* Ripped Edge Effect */
+  .ripped-edge {
+    clip-path: polygon(
+      0% 0%, 5% 2%, 10% 0%, 15% 1%, 20% 0%, 25% 2%, 30% 0%, 35% 1%, 40% 0%, 45% 2%, 50% 0%, 55% 1%, 60% 0%, 65% 2%, 70% 0%, 75% 1%, 80% 0%, 85% 2%, 90% 0%, 95% 1%, 100% 0%,
+      100% 100%, 95% 98%, 90% 100%, 85% 99%, 80% 100%, 75% 98%, 70% 100%, 65% 99%, 60% 100%, 55% 98%, 50% 100%, 45% 99%, 40% 100%, 35% 98%, 30% 100%, 25% 99%, 20% 100%, 15% 98%, 10% 100%, 5% 99%, 0% 100%
+    );
+  }
+
+  /* Doodle Button */
+  .btn-sketch {
+    @apply sketch-border bg-card px-6 py-3 font-bold transition-all;
+    font-family: 'Caveat', cursive;
+    font-size: 1.25rem;
+  }
+
+  .btn-sketch:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 hsl(var(--foreground));
+  }
+
+  .btn-sketch:active {
+    transform: translate(0, 0);
+    box-shadow: none;
+  }
+
+  .btn-sketch-primary {
+    @apply btn-sketch bg-secondary;
+  }
+
+  .btn-sketch-accent {
+    @apply btn-sketch bg-accent text-accent-foreground;
+  }
+
+  .btn-sketch-destructive {
+    @apply btn-sketch bg-destructive text-destructive-foreground;
+  }
+
+  /* Scribble animations */
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-1deg); }
+    50% { transform: rotate(1deg); }
+  }
+
+  @keyframes bounce-in {
+    0% { transform: scale(0.8) rotate(-3deg); opacity: 0; }
+    50% { transform: scale(1.05) rotate(1deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  @keyframes scribble {
+    0% { stroke-dashoffset: 1000; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50% { transform: translateY(-8px) rotate(1deg); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px) rotate(-1deg); }
+    75% { transform: translateX(3px) rotate(1deg); }
+  }
+
+  .animate-wiggle {
+    animation: wiggle 0.5s ease-in-out infinite;
+  }
+
+  .animate-bounce-in {
+    animation: bounce-in 0.4s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-shake {
+    animation: shake 0.3s ease-in-out;
+  }
+
+  .hover-wiggle:hover {
+    animation: wiggle 0.3s ease-in-out;
+  }
+
+  /* Tilt variations */
+  .tilt-1 { transform: rotate(-1deg); }
+  .tilt-2 { transform: rotate(1deg); }
+  .tilt-3 { transform: rotate(-2deg); }
+  .tilt-4 { transform: rotate(2deg); }
+  .tilt-5 { transform: rotate(-0.5deg); }
+}
+
+@layer utilities {
+  /* Handwritten text sizing */
+  .text-handwritten-xs { font-family: 'Caveat', cursive; font-size: 1.25rem; }
+  .text-handwritten-sm { font-family: 'Caveat', cursive; font-size: 1.5rem; }
+  .text-handwritten-base { font-family: 'Caveat', cursive; font-size: 1.75rem; }
+  .text-handwritten-lg { font-family: 'Caveat', cursive; font-size: 2rem; }
+  .text-handwritten-xl { font-family: 'Caveat', cursive; font-size: 2.5rem; }
+  .text-handwritten-2xl { font-family: 'Caveat', cursive; font-size: 3rem; }
+  .text-handwritten-3xl { font-family: 'Caveat', cursive; font-size: 4rem; }
+  .text-handwritten-4xl { font-family: 'Caveat', cursive; font-size: 5rem; }
 }
