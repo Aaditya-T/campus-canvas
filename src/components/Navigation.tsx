@@ -117,16 +117,22 @@ const Navigation = () => {
               ))}
               {user ? (
                 <>
-                  <div className="flex items-center justify-center gap-2 py-2 border-t-2 border-dashed border-foreground/30 mt-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden sketch-border-sm">
-                      {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <User size={18} strokeWidth={2.5} />
-                      )}
+                  <Link 
+                    to="/profile"
+                    className="btn-sketch py-3 text-center mt-2 border-t-2 border-dashed border-foreground/30"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden sketch-border-sm">
+                        {profile?.avatar_url ? (
+                          <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={18} strokeWidth={2.5} />
+                        )}
+                      </div>
+                      <span className="font-comic">{profile?.username || 'My Profile'}</span>
                     </div>
-                    <span className="font-comic">{profile?.username || 'User'}</span>
-                  </div>
+                  </Link>
                   <button 
                     onClick={() => {
                       handleSignOut();

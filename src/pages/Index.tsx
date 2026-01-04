@@ -31,18 +31,18 @@ const Index = () => {
         <HeroSection />
         
         {/* Dashboard Cards Section */}
-        <section className="py-16 px-4">
+        <section className="py-12 md:py-16 px-3 md:px-4">
           <div className="container mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="font-hand text-4xl md:text-5xl text-ink mb-4 marker-underline inline-block">
+            <div className="text-center mb-8 md:mb-12">
+              <h2 className="font-hand text-3xl md:text-4xl lg:text-5xl text-ink mb-3 md:mb-4 marker-underline inline-block">
                 What's Happening? 📢
               </h2>
-              <p className="font-comic text-lg text-ink/70 max-w-xl mx-auto">
+              <p className="font-comic text-sm md:text-lg text-ink/70 max-w-xl mx-auto px-2">
                 Jump into any corner of the chaos — here's a quick peek at what's going on!
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="grid sm:grid-cols-2 gap-4 md:gap-6 max-w-4xl mx-auto">
               {/* Feed Card */}
               <DashboardCard
                 title="Feed"
@@ -52,7 +52,7 @@ const Index = () => {
                 color="yellow"
               >
                 {latestPosts.map((post) => (
-                  <div key={post.id} className="bg-background/50 p-3 sketch-border text-sm">
+                  <div key={post.id} className="bg-background/50 p-2 md:p-3 sketch-border text-xs md:text-sm">
                     <span className="font-comic text-primary font-bold">@{post.author}</span>
                     <p className="font-comic text-ink/80 truncate">{post.content}</p>
                     <div className="flex items-center gap-1 mt-1 text-accent">
@@ -72,7 +72,7 @@ const Index = () => {
                 color="blue"
               >
                 {activeChatrooms.map((room) => (
-                  <div key={room.id} className="bg-background/50 p-3 sketch-border text-sm flex items-center justify-between">
+                  <div key={room.id} className="bg-background/50 p-2 md:p-3 sketch-border text-xs md:text-sm flex items-center justify-between">
                     <div>
                       <p className="font-comic font-bold">{room.name}</p>
                       <div className="flex items-center gap-1 text-ink/60 text-xs">
@@ -96,7 +96,7 @@ const Index = () => {
                 color="red"
               >
                 {latestConfessions.map((confession) => (
-                  <div key={confession.id} className="sticky-note p-3 text-sm">
+                  <div key={confession.id} className="sticky-note p-2 md:p-3 text-xs md:text-sm">
                     <p className="font-hand text-ink/90 italic">"{confession.content}"</p>
                     <div className="flex items-center gap-1 mt-2 text-accent">
                       <Heart className="w-3 h-3" />
@@ -118,10 +118,10 @@ const Index = () => {
                 color="neon"
               >
                 {popularResources.map((resource) => (
-                  <div key={resource.id} className="bg-background/50 p-3 sketch-border text-sm">
+                  <div key={resource.id} className="bg-background/50 p-2 md:p-3 sketch-border text-xs md:text-sm">
                     <p className="font-comic font-bold text-ink">{resource.name}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs font-comic text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      <span className="text-xs font-comic text-primary bg-primary/10 px-1.5 md:px-2 py-0.5 rounded">
                         {resource.branch}
                       </span>
                       <div className="flex items-center gap-1 text-ink/60 text-xs">

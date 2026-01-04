@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { SortType } from '@/components/FeedFilters';
 
 export interface Profile {
   username: string | null;
@@ -14,6 +15,7 @@ export interface Post {
   user_id: string;
   content: string;
   tags: string[];
+  images: string[];
   created_at: string;
   updated_at: string;
   profile: Profile | null;
@@ -31,20 +33,39 @@ export interface Comment {
   profile: Profile | null;
 }
 
+interface FetchPostsOptions {
+  sortBy?: SortType;
+  filterTags?: string[];
+  filterUsername?: string;
+}
+
 export const usePosts = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (options: FetchPostsOptions = {}) => {
+    const { sortBy = 'new', filterTags = [], filterUsername = '' } = options;
     setLoading(true);
     
-    // Fetch posts
-    const { data: postsData, error: postsError } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // Build query
+    let query = supabase.from('posts').select('*');
+
+    // Filter by tags if any
+    if (filterTags.length > 0) {
+      query = query.overlaps('tags', filterTags);
+    }
+
+    // Order based on sort type
+    if (sortBy === 'new') {
+      query = query.order('created_at', { ascending: false });
+    } else {
+      // For hot/trending we'll sort after fetching based on engagement
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data: postsData, error: postsError } = await query;
 
     if (postsError) {
       console.error('Error fetching posts:', postsError);
@@ -67,7 +88,7 @@ export const usePosts = () => {
       .select('user_id, username, display_name, avatar_url')
       .in('user_id', userIds);
 
-    const profilesMap: Record<string, Profile> = {};
+    const profilesMap: Record<string, Profile & { username: string | null }> = {};
     profilesData?.forEach(p => {
       profilesMap[p.user_id] = {
         username: p.username,
@@ -76,15 +97,34 @@ export const usePosts = () => {
       };
     });
 
+    // Filter by username if specified
+    let filteredPostsData = postsData;
+    if (filterUsername) {
+      const matchingUserIds = Object.entries(profilesMap)
+        .filter(([_, profile]) => profile.username?.toLowerCase().includes(filterUsername.toLowerCase()))
+        .map(([userId]) => userId);
+      filteredPostsData = postsData.filter(p => matchingUserIds.includes(p.user_id));
+    }
+
+    if (filteredPostsData.length === 0) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
+    const postIds = filteredPostsData.map(p => p.id);
+
     // Fetch likes counts
     const { data: likesData } = await supabase
       .from('post_likes')
-      .select('post_id');
+      .select('post_id')
+      .in('post_id', postIds);
 
     // Fetch comments counts
     const { data: commentsData } = await supabase
       .from('post_comments')
-      .select('post_id');
+      .select('post_id')
+      .in('post_id', postIds);
 
     // Fetch user's likes if logged in
     let userLikes: string[] = [];
@@ -92,7 +132,8 @@ export const usePosts = () => {
       const { data: userLikesData } = await supabase
         .from('post_likes')
         .select('post_id')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .in('post_id', postIds);
       userLikes = userLikesData?.map(l => l.post_id) || [];
     }
 
@@ -109,11 +150,12 @@ export const usePosts = () => {
     });
 
     // Combine data
-    const enrichedPosts: Post[] = postsData.map(post => ({
+    let enrichedPosts: Post[] = filteredPostsData.map(post => ({
       id: post.id,
       user_id: post.user_id,
       content: post.content,
       tags: post.tags || [],
+      images: post.images || [],
       created_at: post.created_at,
       updated_at: post.updated_at,
       profile: profilesMap[post.user_id] || null,
@@ -121,6 +163,26 @@ export const usePosts = () => {
       comments_count: commentsCount[post.id] || 0,
       user_has_liked: userLikes.includes(post.id)
     }));
+
+    // Sort by engagement for hot/trending
+    if (sortBy === 'hot') {
+      enrichedPosts.sort((a, b) => {
+        const scoreA = a.likes_count * 2 + a.comments_count * 3;
+        const scoreB = b.likes_count * 2 + b.comments_count * 3;
+        return scoreB - scoreA;
+      });
+    } else if (sortBy === 'trending') {
+      // Trending: engagement within last 24h weighted higher
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+      enrichedPosts.sort((a, b) => {
+        const ageA = (now - new Date(a.created_at).getTime()) / dayMs;
+        const ageB = (now - new Date(b.created_at).getTime()) / dayMs;
+        const scoreA = (a.likes_count + a.comments_count * 2) / Math.max(ageA, 0.1);
+        const scoreB = (b.likes_count + b.comments_count * 2) / Math.max(ageB, 0.1);
+        return scoreB - scoreA;
+      });
+    }
 
     setPosts(enrichedPosts);
     setLoading(false);
@@ -130,7 +192,7 @@ export const usePosts = () => {
     fetchPosts();
   }, [fetchPosts]);
 
-  const createPost = async (content: string, tags: string[] = []) => {
+  const createPost = async (content: string, tags: string[] = [], images: string[] = []) => {
     if (!user) {
       toast({
         title: "Not logged in",
@@ -162,7 +224,8 @@ export const usePosts = () => {
       .insert({
         user_id: user.id,
         content: content.trim(),
-        tags
+        tags,
+        images
       });
 
     if (error) {
