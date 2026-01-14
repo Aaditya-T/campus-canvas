@@ -7,6 +7,7 @@ import ImageUpload from './ImageUpload';
 import TagSelector from './TagSelector';
 import { usePosts } from '@/hooks/usePosts';
 import { useAuth } from '@/hooks/useAuth';
+import { POST_MAX_LENGTH, getCharacterCountColor, isOverLimit } from '@/lib/constants';
 
 const PostsFeed = () => {
   const [newPostContent, setNewPostContent] = useState('');
@@ -29,7 +30,7 @@ const PostsFeed = () => {
   }, [sortBy, filterTags, filterUsername, refreshPosts]);
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim()) return;
+    if (!newPostContent.trim() || isOverLimit(newPostContent.length, POST_MAX_LENGTH)) return;
     
     setIsPosting(true);
     const { error } = await createPost(newPostContent, newPostTags, newPostImages);
@@ -40,6 +41,12 @@ const PostsFeed = () => {
       setShowPostForm(false);
     }
     setIsPosting(false);
+  };
+
+  const handlePostContentChange = (value: string) => {
+    if (value.length <= POST_MAX_LENGTH + 50) {
+      setNewPostContent(value);
+    }
   };
 
   const handleTagClickInPost = (tag: string) => {
@@ -98,14 +105,23 @@ const PostsFeed = () => {
                   <div className="w-10 h-10 md:w-12 md:h-12 sketch-border bg-accent/20 flex items-center justify-center shrink-0">
                     <PenTool size={20} strokeWidth={2.5} />
                   </div>
-                  <textarea
-                    value={newPostContent}
-                    onChange={(e) => setNewPostContent(e.target.value)}
-                    placeholder="What's on your mind? Spill the tea... ☕"
-                    className="flex-1 w-full bg-transparent text-sm md:text-lg font-comic placeholder:text-muted-foreground focus:outline-none resize-none min-h-[80px]"
-                    rows={3}
-                    autoFocus
-                  />
+                  <div className="flex-1">
+                    <textarea
+                      value={newPostContent}
+                      onChange={(e) => handlePostContentChange(e.target.value)}
+                      placeholder="What's on your mind? Spill the tea... ☕"
+                      className={`w-full bg-transparent text-sm md:text-lg font-comic placeholder:text-muted-foreground focus:outline-none resize-none min-h-[80px] ${
+                        isOverLimit(newPostContent.length, POST_MAX_LENGTH) ? 'text-destructive' : ''
+                      }`}
+                      rows={3}
+                      autoFocus
+                    />
+                    <div className="flex justify-end mt-1">
+                      <span className={`text-xs font-comic ${getCharacterCountColor(newPostContent.length, POST_MAX_LENGTH)}`}>
+                        {POST_MAX_LENGTH - newPostContent.length} characters left
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Image Upload */}
@@ -139,7 +155,7 @@ const PostsFeed = () => {
                   </button>
                   <button 
                     onClick={handleCreatePost}
-                    disabled={isPosting || !newPostContent.trim()}
+                    disabled={isPosting || !newPostContent.trim() || isOverLimit(newPostContent.length, POST_MAX_LENGTH)}
                     className="btn-sketch-primary py-2 px-4 md:px-6 text-sm md:text-xl shrink-0 disabled:opacity-50 flex items-center gap-2"
                   >
                     {isPosting ? (

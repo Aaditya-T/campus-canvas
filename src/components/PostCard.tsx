@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, Trash2, ChevronLeft, ChevronRight, Filter, ExternalLink } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Trash2, ChevronLeft, ChevronRight, Filter, ExternalLink, Check, Copy } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Post } from '@/hooks/usePosts';
 import { useAuth } from '@/hooks/useAuth';
 import { PREDEFINED_TAGS } from './TagSelector';
 import CommentsModal from './CommentsModal';
+import { useToast } from '@/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -24,8 +25,10 @@ interface PostCardProps {
 const PostCard = ({ post, tilt = 1, onLike, onDelete, onTagClick, onUserClick }: PostCardProps) => {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [copied, setCopied] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const tiltClass = tilt % 2 === 0 ? 'tilt-2' : 'tilt-1';
   const isOwner = user?.id === post.user_id;
@@ -47,6 +50,26 @@ const PostCard = ({ post, tilt = 1, onLike, onDelete, onTagClick, onUserClick }:
   const handleTagClick = (tag: string) => {
     if (onTagClick) {
       onTagClick(tag);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/post/${post.id}`;
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast({
+        title: "Link copied!",
+        description: "Share this link with your friends"
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: "Failed to copy",
+        description: "Please copy the URL manually",
+        variant: "destructive"
+      });
     }
   };
 
@@ -211,12 +234,19 @@ const PostCard = ({ post, tilt = 1, onLike, onDelete, onTagClick, onUserClick }:
             />
             <span className="text-xs md:text-sm font-comic">{post.comments_count}</span>
           </button>
-          <button className="flex items-center gap-1 hover:text-neon transition-colors ml-auto group/btn">
-            <Share2 
-              size={16} 
-              strokeWidth={2.5}
-              className="group-hover/btn:animate-wiggle"
-            />
+          <button 
+            onClick={handleShare}
+            className="flex items-center gap-1 hover:text-neon transition-colors ml-auto group/btn"
+          >
+            {copied ? (
+              <Check size={16} strokeWidth={2.5} className="text-neon" />
+            ) : (
+              <Share2 
+                size={16} 
+                strokeWidth={2.5}
+                className="group-hover/btn:animate-wiggle"
+              />
+            )}
           </button>
         </div>
       </article>

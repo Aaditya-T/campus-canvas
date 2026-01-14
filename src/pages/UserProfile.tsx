@@ -15,6 +15,8 @@ interface UserProfileData extends Profile {
   user_id: string;
 }
 
+const POSTS_PER_PAGE = 6;
+
 const UserProfile = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
@@ -23,15 +25,98 @@ const UserProfile = () => {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const [stats, setStats] = useState({ posts: 0, likes: 0 });
+
+  const fetchPosts = async (profileData: UserProfileData, pageNum: number, append: boolean = false) => {
+    const from = pageNum * POSTS_PER_PAGE;
+    const to = from + POSTS_PER_PAGE - 1;
+
+    const { data: postsData, error: postsError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', profileData.user_id)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (postsError || !postsData) {
+      return;
+    }
+
+    // Check if there are more posts
+    setHasMore(postsData.length === POSTS_PER_PAGE);
+
+    if (postsData.length > 0) {
+      const postIds = postsData.map(p => p.id);
+      
+      const { data: likesData } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .in('post_id', postIds);
+
+      const { data: commentsData } = await supabase
+        .from('post_comments')
+        .select('post_id')
+        .in('post_id', postIds);
+
+      let userLikes: string[] = [];
+      if (user) {
+        const { data: userLikesData } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds);
+        userLikes = userLikesData?.map(l => l.post_id) || [];
+      }
+
+      const likesCount: Record<string, number> = {};
+      const commentsCount: Record<string, number> = {};
+      
+      likesData?.forEach(like => {
+        likesCount[like.post_id] = (likesCount[like.post_id] || 0) + 1;
+      });
+      
+      commentsData?.forEach(comment => {
+        commentsCount[comment.post_id] = (commentsCount[comment.post_id] || 0) + 1;
+      });
+
+      const enrichedPosts: Post[] = postsData.map(post => ({
+        id: post.id,
+        user_id: post.user_id,
+        content: post.content,
+        tags: post.tags || [],
+        images: post.images || [],
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+        profile: {
+          username: profileData.username,
+          display_name: profileData.display_name,
+          avatar_url: profileData.avatar_url
+        },
+        likes_count: likesCount[post.id] || 0,
+        comments_count: commentsCount[post.id] || 0,
+        user_has_liked: userLikes.includes(post.id)
+      }));
+
+      if (append) {
+        setPosts(prev => [...prev, ...enrichedPosts]);
+      } else {
+        setPosts(enrichedPosts);
+      }
+    } else if (!append) {
+      setPosts([]);
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (!username) return;
 
       setLoading(true);
+      setPage(0);
 
-      // Fetch profile by username
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -43,88 +128,55 @@ const UserProfile = () => {
         return;
       }
 
-      setProfile({
+      const profileInfo: UserProfileData = {
         username: profileData.username,
         display_name: profileData.display_name,
         avatar_url: profileData.avatar_url,
         bio: profileData.bio,
         created_at: profileData.created_at,
         user_id: profileData.user_id
-      });
+      };
 
-      // Fetch user's posts
-      const { data: postsData } = await supabase
+      setProfile(profileInfo);
+
+      // Get total stats
+      const { count: totalPosts } = await supabase
         .from('posts')
-        .select('*')
-        .eq('user_id', profileData.user_id)
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profileData.user_id);
 
-      if (postsData) {
-        // Fetch likes for these posts
-        const postIds = postsData.map(p => p.id);
-        const { data: likesData } = await supabase
+      const { data: allPostIds } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('user_id', profileData.user_id);
+
+      let totalLikes = 0;
+      if (allPostIds && allPostIds.length > 0) {
+        const { count } = await supabase
           .from('post_likes')
-          .select('post_id')
-          .in('post_id', postIds);
-
-        const { data: commentsData } = await supabase
-          .from('post_comments')
-          .select('post_id')
-          .in('post_id', postIds);
-
-        // User's likes
-        let userLikes: string[] = [];
-        if (user) {
-          const { data: userLikesData } = await supabase
-            .from('post_likes')
-            .select('post_id')
-            .eq('user_id', user.id)
-            .in('post_id', postIds);
-          userLikes = userLikesData?.map(l => l.post_id) || [];
-        }
-
-        // Count likes and comments
-        const likesCount: Record<string, number> = {};
-        const commentsCount: Record<string, number> = {};
-        
-        likesData?.forEach(like => {
-          likesCount[like.post_id] = (likesCount[like.post_id] || 0) + 1;
-        });
-        
-        commentsData?.forEach(comment => {
-          commentsCount[comment.post_id] = (commentsCount[comment.post_id] || 0) + 1;
-        });
-
-        const enrichedPosts: Post[] = postsData.map(post => ({
-          id: post.id,
-          user_id: post.user_id,
-          content: post.content,
-          tags: post.tags || [],
-          images: post.images || [],
-          created_at: post.created_at,
-          updated_at: post.updated_at,
-          profile: {
-            username: profileData.username,
-            display_name: profileData.display_name,
-            avatar_url: profileData.avatar_url
-          },
-          likes_count: likesCount[post.id] || 0,
-          comments_count: commentsCount[post.id] || 0,
-          user_has_liked: userLikes.includes(post.id)
-        }));
-
-        setPosts(enrichedPosts);
-
-        // Calculate stats
-        const totalLikes = Object.values(likesCount).reduce((a, b) => a + b, 0);
-        setStats({ posts: postsData.length, likes: totalLikes });
+          .select('*', { count: 'exact', head: true })
+          .in('post_id', allPostIds.map(p => p.id));
+        totalLikes = count || 0;
       }
 
+      setStats({ posts: totalPosts || 0, likes: totalLikes });
+
+      await fetchPosts(profileInfo, 0);
       setLoading(false);
     };
 
     fetchProfile();
   }, [username, user]);
+
+  const loadMore = async () => {
+    if (!profile || loadingMore) return;
+    
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    await fetchPosts(profile, nextPage, true);
+    setPage(nextPage);
+    setLoadingMore(false);
+  };
 
   const handleLike = async (postId: string) => {
     if (!user) return;
@@ -276,17 +328,38 @@ const UserProfile = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                {posts.map((post, index) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    tilt={index}
-                    onLike={handleLike}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid md:grid-cols-2 gap-6 items-start">
+                  {posts.map((post, index) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      tilt={index}
+                      onLike={handleLike}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+                
+                {hasMore && (
+                  <div className="text-center mt-6">
+                    <button 
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="btn-sketch py-2 px-6 flex items-center gap-2 mx-auto"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Load more posts ↓'
+                      )}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
