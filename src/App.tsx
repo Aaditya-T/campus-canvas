@@ -12,6 +12,7 @@ import Resources from "./pages/Resources";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
+import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/feed" element={<Feed />} />
+            <Route path="/post/:postId" element={<PostPage />} />
             <Route path="/chatrooms" element={<Chatrooms />} />
             <Route path="/confessions" element={<Confessions />} />
             <Route path="/resources" element={<Resources />} />
