@@ -187,7 +187,7 @@ const PostsFeed = () => {
             )}
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 items-start">
             {posts.map((post, index) => (
               <PostCard
                 key={post.id}

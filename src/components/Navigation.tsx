@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, MessageCircle, Eye, PenTool, BookOpen, LogIn, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import GlobalSearch from './GlobalSearch';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,8 +54,9 @@ const Navigation = () => {
             ))}
           </div>
 
-          {/* Auth Button */}
+          {/* Search & Auth */}
           <div className="hidden md:flex items-center gap-3">
+            <GlobalSearch />
             {loading ? (
               <div className="w-8 h-8 sketch-border animate-pulse bg-muted" />
             ) : user ? (
