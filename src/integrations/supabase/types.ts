@@ -118,6 +118,14 @@ export type Database = {
           updated_at: string
           user_id: string
           username: string | null
+          status: Database["public"]["Enums"]["verification_status"]
+          gender: Database["public"]["Enums"]["gender_type"] | null
+          id_card_path: string | null
+          admission_slip_path: string | null
+          selfie_path: string | null
+          submitted_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -128,6 +136,14 @@ export type Database = {
           updated_at?: string
           user_id: string
           username?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          gender?: Database["public"]["Enums"]["gender_type"] | null
+          id_card_path?: string | null
+          admission_slip_path?: string | null
+          selfie_path?: string | null
+          submitted_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -138,6 +154,14 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          gender?: Database["public"]["Enums"]["gender_type"] | null
+          id_card_path?: string | null
+          admission_slip_path?: string | null
+          selfie_path?: string | null
+          submitted_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
         }
         Relationships: []
       }
@@ -183,6 +207,126 @@ export type Database = {
         }
         Relationships: []
       }
+      confessions: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          author_name: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          author_name?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          author_name?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      confession_likes: {
+        Row: {
+          id: string
+          confession_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          confession_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          confession_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confession_likes_confession_id_fkey"
+            columns: ["confession_id"]
+            isOneToOne: false
+            referencedRelation: "confessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      confession_comments: {
+        Row: {
+          id: string
+          confession_id: string
+          user_id: string
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          confession_id: string
+          user_id: string
+          content: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          confession_id?: string
+          user_id?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confession_comments_confession_id_fkey"
+            columns: ["confession_id"]
+            isOneToOne: false
+            referencedRelation: "confessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      confession_authors: {
+        Row: {
+          id: string
+          confession_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          confession_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          confession_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confession_authors_confession_id_fkey"
+            columns: ["confession_id"]
+            isOneToOne: false
+            referencedRelation: "confessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -209,9 +353,51 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_confession_ownership: {
+        Args: {
+          p_confession_id: string
+        }
+        Returns: boolean
+      }
+      approve_user: {
+        Args: {
+          p_user_id: string
+          p_gender: Database["public"]["Enums"]["gender_type"]
+          p_reviewer_id: string
+        }
+        Returns: undefined
+      }
+      reject_user: {
+        Args: {
+          p_user_id: string
+          p_reviewer_id: string
+        }
+        Returns: undefined
+      }
+      is_admin: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      search_confessions: {
+        Args: {
+          search_query: string
+        }
+        Returns: {
+          id: string
+          title: string
+          description: string
+          author_name: string
+          created_at: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       app_role: "member" | "moderator" | "admin"
+      verification_status: "pending" | "approved" | "rejected"
+      gender_type: "he/him" | "she/her" | "they/them"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -340,6 +526,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["member", "moderator", "admin"],
+      verification_status: ["pending", "approved", "rejected"],
+      gender_type: ["he/him", "she/her", "they/them"],
     },
   },
 } as const

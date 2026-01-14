@@ -13,6 +13,7 @@ interface UserProfileData extends Profile {
   bio: string | null;
   created_at: string;
   user_id: string;
+  gender?: string | null;
 }
 
 const POSTS_PER_PAGE = 6;
@@ -121,6 +122,7 @@ const UserProfile = () => {
         .from('profiles')
         .select('*')
         .eq('username', username)
+        .eq('status', 'approved') // Only show approved users
         .maybeSingle();
 
       if (profileError || !profileData) {
@@ -134,7 +136,8 @@ const UserProfile = () => {
         avatar_url: profileData.avatar_url,
         bio: profileData.bio,
         created_at: profileData.created_at,
-        user_id: profileData.user_id
+        user_id: profileData.user_id,
+        gender: profileData.gender
       };
 
       setProfile(profileInfo);
@@ -274,9 +277,16 @@ const UserProfile = () => {
                 <h1 className="font-hand text-3xl md:text-4xl mb-1">
                   {profile.display_name || profile.username || 'Anonymous'}
                 </h1>
-                <p className="font-comic text-muted-foreground mb-3">
-                  @{profile.username || 'anonymous'}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start mb-3">
+                  <p className="font-comic text-muted-foreground">
+                    @{profile.username || 'anonymous'}
+                  </p>
+                  {profile.gender && (
+                    <span className="px-2 py-0.5 sketch-border-sm bg-primary/20 text-primary font-comic text-xs">
+                      {profile.gender}
+                    </span>
+                  )}
+                </div>
 
                 {profile.bio && (
                   <p className="font-comic text-foreground/80 mb-4 max-w-md">

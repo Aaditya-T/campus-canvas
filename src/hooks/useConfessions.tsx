@@ -2,7 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
-import { SortType } from '@/components/FeedFilters';
+
+export interface Confession {
+  id: string;
+  title: string;
+  description: string;
+  author_name: string;
+  created_at: string;
+  updated_at: string;
+  likes_count: number;
+  comments_count: number;
+  user_has_liked: boolean;
+}
 
 export interface Profile {
   username: string | null;
@@ -10,40 +21,25 @@ export interface Profile {
   avatar_url: string | null;
 }
 
-export interface Post {
+export interface ConfessionComment {
   id: string;
-  user_id: string;
+  confession_id: string;
   content: string;
-  tags: string[];
-  images: string[];
   created_at: string;
   updated_at: string;
   profile: Profile | null;
-  likes_count: number;
-  comments_count: number;
-  user_has_liked: boolean;
+  user_owns: boolean; // For delete button visibility
 }
 
-export interface Comment {
-  id: string;
-  post_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
-  profile: Profile | null;
-}
-
-interface FetchPostsOptions {
-  sortBy?: SortType;
-  filterTags?: string[];
-  filterUsername?: string;
+interface FetchConfessionsOptions {
   searchQuery?: string;
+  sortBy?: 'new' | 'hot' | 'trending';
 }
 
-const POSTS_PER_PAGE = 20;
+const CONFESSIONS_PER_PAGE = 20;
 
-export const usePosts = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+export const useConfessions = () => {
+  const [confessions, setConfessions] = useState<Confession[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -51,12 +47,10 @@ export const usePosts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [filterOptions, setFilterOptions] = useState<FetchPostsOptions>({ sortBy: 'new', filterTags: [], filterUsername: '' });
-
-  const fetchPosts = useCallback(async (options: FetchPostsOptions = {}, append = false, pageOverride?: number) => {
-    const { sortBy = 'new', filterTags = [], filterUsername = '', searchQuery = '' } = options;
+  const fetchConfessions = useCallback(async (options: FetchConfessionsOptions = {}, append = false, pageOverride?: number) => {
+    const { searchQuery = '', sortBy = 'new' } = options;
     const page = pageOverride !== undefined ? pageOverride : (append ? currentPage + 1 : 0);
-    const offset = page * POSTS_PER_PAGE;
+    const offset = page * CONFESSIONS_PER_PAGE;
     
     if (append) {
       setLoadingMore(true);
@@ -65,155 +59,121 @@ export const usePosts = () => {
       setCurrentPage(0);
     }
     
-    // Build query
-    let query = supabase.from('posts').select('*', { count: 'exact' });
+    let query = supabase.from('confessions').select('*', { count: 'exact' });
 
-    // Search functionality - search in post content
+    // Search functionality
     if (searchQuery.trim()) {
-      query = query.ilike('content', `%${searchQuery.trim()}%`);
-    }
+      // Use full-text search function
+      const { data: searchResults, error: searchError } = await supabase.rpc('search_confessions', {
+        search_query: searchQuery.trim()
+      });
 
-    // Filter by tags if any
-    if (filterTags.length > 0) {
-      query = query.overlaps('tags', filterTags);
+      if (searchError) {
+        console.error('Error searching confessions:', searchError);
+        // Fallback to regular query if search fails
+        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      } else if (searchResults && searchResults.length > 0) {
+        const confessionIds = searchResults.map(r => r.id);
+        query = query.in('id', confessionIds);
+      } else {
+        // No results from search
+        setConfessions([]);
+        setLoading(false);
+        return;
+      }
     }
 
     // Order based on sort type
     if (sortBy === 'new') {
       query = query.order('created_at', { ascending: false });
     } else {
-      // For hot/trending we'll sort after fetching based on engagement
       query = query.order('created_at', { ascending: false });
     }
 
     // Apply pagination
-    query = query.range(offset, offset + POSTS_PER_PAGE - 1);
+    query = query.range(offset, offset + CONFESSIONS_PER_PAGE - 1);
 
-    const { data: postsData, error: postsError, count } = await query;
+    const { data: confessionsData, error: confessionsError, count } = await query;
 
-    if (postsError) {
-      console.error('Error fetching posts:', postsError);
+    if (confessionsError) {
+      console.error('Error fetching confessions:', confessionsError);
       setLoading(false);
       setLoadingMore(false);
       return;
     }
 
-    if (!postsData || postsData.length === 0) {
+    if (!confessionsData || confessionsData.length === 0) {
       if (append) {
         setHasMore(false);
         setLoadingMore(false);
       } else {
-        setPosts([]);
+        setConfessions([]);
         setHasMore(false);
         setLoading(false);
       }
       return;
     }
 
-    // Check if there are more posts
-    const totalFetched = offset + postsData.length;
+    // Check if there are more confessions
+    const totalFetched = offset + confessionsData.length;
     setHasMore(totalFetched < (count || 0));
     if (append) {
       setCurrentPage(page);
     }
 
-    // Get unique user IDs
-    const userIds = [...new Set(postsData.map(p => p.user_id))];
-    
-    // Fetch profiles for these users (only approved users)
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('user_id, username, display_name, avatar_url')
-      .in('user_id', userIds)
-      .eq('status', 'approved');
-
-    const profilesMap: Record<string, Profile & { username: string | null }> = {};
-    profilesData?.forEach(p => {
-      profilesMap[p.user_id] = {
-        username: p.username,
-        display_name: p.display_name,
-        avatar_url: p.avatar_url
-      };
-    });
-
-    // Filter posts to only include approved users
-    const approvedUserIds = new Set(Object.keys(profilesMap));
-    let filteredPostsData = postsData.filter(p => approvedUserIds.has(p.user_id));
-
-    // Filter by username if specified
-    if (filterUsername) {
-      const matchingUserIds = Object.entries(profilesMap)
-        .filter(([_, profile]) => profile.username?.toLowerCase().includes(filterUsername.toLowerCase()))
-        .map(([userId]) => userId);
-      filteredPostsData = filteredPostsData.filter(p => matchingUserIds.includes(p.user_id));
-    }
-
-    if (filteredPostsData.length === 0) {
-      setPosts([]);
-      setLoading(false);
-      return;
-    }
-
-    const postIds = filteredPostsData.map(p => p.id);
+    const confessionIds = confessionsData.map(c => c.id);
 
     // Fetch likes counts
     const { data: likesData } = await supabase
-      .from('post_likes')
-      .select('post_id')
-      .in('post_id', postIds);
+      .from('confession_likes')
+      .select('confession_id')
+      .in('confession_id', confessionIds);
 
     // Fetch comments counts
     const { data: commentsData } = await supabase
-      .from('post_comments')
-      .select('post_id')
-      .in('post_id', postIds);
+      .from('confession_comments')
+      .select('confession_id')
+      .in('confession_id', confessionIds);
 
     // Fetch user's likes if logged in
     let userLikes: string[] = [];
     if (user) {
       const { data: userLikesData } = await supabase
-        .from('post_likes')
-        .select('post_id')
+        .from('confession_likes')
+        .select('confession_id')
         .eq('user_id', user.id)
-        .in('post_id', postIds);
-      userLikes = userLikesData?.map(l => l.post_id) || [];
+        .in('confession_id', confessionIds);
+      userLikes = userLikesData?.map(l => l.confession_id) || [];
     }
 
-    // Count likes and comments per post
+    // Count likes and comments per confession
     const likesCount: Record<string, number> = {};
     const commentsCount: Record<string, number> = {};
     
     likesData?.forEach(like => {
-      likesCount[like.post_id] = (likesCount[like.post_id] || 0) + 1;
+      likesCount[like.confession_id] = (likesCount[like.confession_id] || 0) + 1;
     });
     
     commentsData?.forEach(comment => {
-      commentsCount[comment.post_id] = (commentsCount[comment.post_id] || 0) + 1;
+      commentsCount[comment.confession_id] = (commentsCount[comment.confession_id] || 0) + 1;
     });
 
     // Combine data
-    let enrichedPosts: Post[] = filteredPostsData.map(post => ({
-      id: post.id,
-      user_id: post.user_id,
-      content: post.content,
-      tags: post.tags || [],
-      images: post.images || [],
-      created_at: post.created_at,
-      updated_at: post.updated_at,
-      profile: profilesMap[post.user_id] || null,
-      likes_count: likesCount[post.id] || 0,
-      comments_count: commentsCount[post.id] || 0,
-      user_has_liked: userLikes.includes(post.id)
+    let enrichedConfessions: Confession[] = confessionsData.map(confession => ({
+      id: confession.id,
+      title: confession.title,
+      description: confession.description,
+      author_name: confession.author_name,
+      created_at: confession.created_at,
+      updated_at: confession.updated_at,
+      likes_count: likesCount[confession.id] || 0,
+      comments_count: commentsCount[confession.id] || 0,
+      user_has_liked: userLikes.includes(confession.id)
     }));
-    
-    // Apply client-side sorting for hot/trending if needed
-    // (This happens after pagination, so we need to handle it carefully)
 
     // Sort by engagement for hot/trending
-    // Note: For pagination, we fetch by date first, then sort client-side
-    // This means hot/trending might not be perfect across pages, but it's acceptable
     if (sortBy === 'hot') {
-      enrichedPosts.sort((a, b) => {
+      enrichedConfessions.sort((a, b) => {
         const scoreA = a.likes_count * 2 + a.comments_count * 3;
         const scoreB = b.likes_count * 2 + b.comments_count * 3;
         return scoreB - scoreA;
@@ -222,7 +182,7 @@ export const usePosts = () => {
       // Trending: engagement within last 24h weighted higher
       const now = Date.now();
       const dayMs = 24 * 60 * 60 * 1000;
-      enrichedPosts.sort((a, b) => {
+      enrichedConfessions.sort((a, b) => {
         const ageA = (now - new Date(a.created_at).getTime()) / dayMs;
         const ageB = (now - new Date(b.created_at).getTime()) / dayMs;
         const scoreA = (a.likes_count + a.comments_count * 2) / Math.max(ageA, 0.1);
@@ -232,33 +192,34 @@ export const usePosts = () => {
     }
 
     if (append) {
-      setPosts(prev => [...prev, ...enrichedPosts]);
+      setConfessions(prev => [...prev, ...enrichedConfessions]);
       setLoadingMore(false);
-      setCurrentPage(page);
     } else {
-      setPosts(enrichedPosts);
+      setConfessions(enrichedConfessions);
       setLoading(false);
       setCurrentPage(0);
     }
   }, [user, currentPage]);
 
+  const [filterOptions, setFilterOptions] = useState<FetchConfessionsOptions>({ searchQuery: '', sortBy: 'new' });
+
   useEffect(() => {
-    const options = { sortBy: 'new', filterTags: [], filterUsername: '' };
+    const options = { searchQuery: '', sortBy: 'new' };
     setFilterOptions(options);
-    fetchPosts(options, false, 0);
+    fetchConfessions(options, false, 0);
   }, []); // Initial load
 
-  const loadMorePosts = useCallback(() => {
+  const loadMoreConfessions = useCallback(() => {
     if (!loadingMore && hasMore) {
-      fetchPosts(filterOptions, true);
+      fetchConfessions(filterOptions, true);
     }
-  }, [fetchPosts, loadingMore, hasMore, filterOptions]);
+  }, [fetchConfessions, loadingMore, hasMore, filterOptions]);
 
-  const createPost = async (content: string, tags: string[] = [], images: string[] = []) => {
+  const createConfession = async (title: string, description: string, authorName: string = 'anonymous') => {
     if (!user) {
       toast({
         title: "Not logged in",
-        description: "Please login to create a post",
+        description: "Please login to create a confession",
         variant: "destructive"
       });
       return { error: new Error('Not authenticated') };
@@ -280,75 +241,74 @@ export const usePosts = () => {
       return { error: new Error('Account not approved') };
     }
 
-    // Check rate limit (10 posts per minute)
+    // Check rate limit (5 confessions per hour)
     const { data: rateLimitOk } = await supabase.rpc('check_rate_limit', {
       p_user_id: user.id,
-      p_action_type: 'create_post',
-      p_max_requests: 10,
-      p_window_seconds: 60
+      p_action_type: 'create_confession',
+      p_max_requests: 5,
+      p_window_seconds: 3600
     });
 
     if (!rateLimitOk) {
       toast({
         title: "Slow down!",
-        description: "You're posting too fast. Wait a bit.",
+        description: "You're creating confessions too fast. Wait a bit.",
         variant: "destructive"
       });
       return { error: new Error('Rate limited') };
     }
 
     const { error } = await supabase
-      .from('posts')
+      .from('confessions')
       .insert({
-        user_id: user.id,
-        content: content.trim(),
-        tags,
-        images
+        title: title.trim(),
+        description: description.trim(),
+        author_name: authorName.trim() || 'anonymous'
       });
 
     if (error) {
       toast({
         title: "Error",
-        description: "Failed to create post",
+        description: "Failed to create confession",
         variant: "destructive"
       });
       return { error };
     }
 
     toast({
-      title: "Posted!",
-      description: "Your thoughts are now out there 🎉"
+      title: "Confession posted!",
+      description: "Your secret is safe with us 🤫"
     });
 
-    await fetchPosts();
+    await fetchConfessions();
     return { error: null };
   };
 
-  const toggleLike = async (postId: string) => {
+  const toggleLike = async (confessionId: string) => {
     if (!user) {
       toast({
         title: "Not logged in",
-        description: "Please login to like posts",
+        description: "Please login to like confessions",
         variant: "destructive"
       });
       return;
     }
 
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
+    const confession = confessions.find(c => c.id === confessionId);
+    if (!confession) return;
 
-    if (post.user_has_liked) {
+    if (confession.user_has_liked) {
       // Unlike
       await supabase
-        .from('post_likes')
+        .from('confession_likes')
         .delete()
-        .eq('post_id', postId)
+        .eq('confession_id', confessionId)
         .eq('user_id', user.id);
     } else {
       // Check rate limit (30 likes per minute)
       const { data: rateLimitOk } = await supabase.rpc('check_rate_limit', {
         p_user_id: user.id,
-        p_action_type: 'like_post',
+        p_action_type: 'like_confession',
         p_max_requests: 30,
         p_window_seconds: 60
       });
@@ -363,64 +323,45 @@ export const usePosts = () => {
       }
 
       await supabase
-        .from('post_likes')
+        .from('confession_likes')
         .insert({
-          post_id: postId,
+          confession_id: confessionId,
           user_id: user.id
         });
     }
 
     // Optimistic update
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
+    setConfessions(prev => prev.map(c => {
+      if (c.id === confessionId) {
         return {
-          ...p,
-          user_has_liked: !p.user_has_liked,
-          likes_count: p.user_has_liked ? p.likes_count - 1 : p.likes_count + 1
+          ...c,
+          user_has_liked: !c.user_has_liked,
+          likes_count: c.user_has_liked ? c.likes_count - 1 : c.likes_count + 1
         };
       }
-      return p;
+      return c;
     }));
   };
 
-  const deletePost = async (postId: string) => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', postId)
-      .eq('user_id', user.id);
-
-    if (!error) {
-      setPosts(prev => prev.filter(p => p.id !== postId));
-      toast({
-        title: "Deleted",
-        description: "Post removed"
-      });
-    }
-  };
-
-  const refreshPosts = useCallback((options: FetchPostsOptions) => {
+  const refreshConfessions = useCallback((options: FetchConfessionsOptions) => {
     setFilterOptions(options);
-    fetchPosts(options, false, 0);
-  }, [fetchPosts]);
+    fetchConfessions(options, false, 0);
+  }, [fetchConfessions]);
 
   return {
-    posts,
+    confessions,
     loading,
     loadingMore,
     hasMore,
-    createPost,
+    createConfession,
     toggleLike,
-    deletePost,
-    loadMorePosts,
-    refreshPosts
+    loadMoreConfessions,
+    refreshConfessions
   };
 };
 
-export const useComments = (postId: string) => {
-  const [comments, setComments] = useState<Comment[]>([]);
+export const useConfessionComments = (confessionId: string) => {
+  const [comments, setComments] = useState<ConfessionComment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -429,9 +370,9 @@ export const useComments = (postId: string) => {
     setLoading(true);
     
     const { data: commentsData, error } = await supabase
-      .from('post_comments')
-      .select('*')
-      .eq('post_id', postId)
+      .from('confession_comments')
+      .select('id, confession_id, content, user_id, created_at, updated_at')
+      .eq('confession_id', confessionId)
       .order('created_at', { ascending: true });
 
     if (error || !commentsData) {
@@ -442,7 +383,7 @@ export const useComments = (postId: string) => {
     // Get unique user IDs
     const userIds = [...new Set(commentsData.map(c => c.user_id))];
     
-    // Fetch profiles (only approved users)
+    // Fetch profiles for these users (only approved users)
     const { data: profilesData } = await supabase
       .from('profiles')
       .select('user_id, username, display_name, avatar_url')
@@ -458,18 +399,27 @@ export const useComments = (postId: string) => {
       };
     });
 
-    const enrichedComments: Comment[] = commentsData.map(comment => ({
+    // Check ownership for each comment (only if user is logged in)
+    const ownershipMap: Record<string, boolean> = {};
+    if (user) {
+      commentsData.forEach(comment => {
+        ownershipMap[comment.id] = comment.user_id === user.id;
+      });
+    }
+
+    const enrichedComments: ConfessionComment[] = commentsData.map(comment => ({
       id: comment.id,
-      post_id: comment.post_id,
-      user_id: comment.user_id,
+      confession_id: comment.confession_id,
       content: comment.content,
       created_at: comment.created_at,
-      profile: profilesMap[comment.user_id] || null
+      updated_at: comment.updated_at,
+      profile: profilesMap[comment.user_id] || null,
+      user_owns: ownershipMap[comment.id] || false
     }));
 
     setComments(enrichedComments);
     setLoading(false);
-  }, [postId]);
+  }, [confessionId, user]);
 
   useEffect(() => {
     fetchComments();
@@ -488,7 +438,7 @@ export const useComments = (postId: string) => {
     // Check rate limit (20 comments per minute)
     const { data: rateLimitOk } = await supabase.rpc('check_rate_limit', {
       p_user_id: user.id,
-      p_action_type: 'create_comment',
+      p_action_type: 'create_confession_comment',
       p_max_requests: 20,
       p_window_seconds: 60
     });
@@ -503,9 +453,9 @@ export const useComments = (postId: string) => {
     }
 
     const { error } = await supabase
-      .from('post_comments')
+      .from('confession_comments')
       .insert({
-        post_id: postId,
+        confession_id: confessionId,
         user_id: user.id,
         content: content.trim()
       });
@@ -527,7 +477,7 @@ export const useComments = (postId: string) => {
     if (!user) return;
 
     await supabase
-      .from('post_comments')
+      .from('confession_comments')
       .delete()
       .eq('id', commentId)
       .eq('user_id', user.id);
@@ -543,3 +493,4 @@ export const useComments = (postId: string) => {
     refreshComments: fetchComments
   };
 };
+

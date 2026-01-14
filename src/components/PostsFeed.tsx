@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PenTool, Loader2 } from 'lucide-react';
+import { PenTool, Loader2, Search } from 'lucide-react';
 import PostCard from './PostCard';
 import FeedFilters, { SortType } from './FeedFilters';
 import ImageUpload from './ImageUpload';
@@ -20,14 +20,25 @@ const PostsFeed = () => {
   const [sortBy, setSortBy] = useState<SortType>('hot');
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [filterUsername, setFilterUsername] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   
-  const { posts, loading, createPost, toggleLike, deletePost, refreshPosts } = usePosts();
+  const { posts, loading, loadingMore, hasMore, createPost, toggleLike, deletePost, loadMorePosts, refreshPosts } = usePosts();
   const { user } = useAuth();
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Refetch when filters change
   useEffect(() => {
-    refreshPosts({ sortBy, filterTags, filterUsername });
-  }, [sortBy, filterTags, filterUsername, refreshPosts]);
+    refreshPosts({ sortBy, filterTags, filterUsername, searchQuery: debouncedSearchQuery });
+  }, [sortBy, filterTags, filterUsername, debouncedSearchQuery, refreshPosts]);
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim() || isOverLimit(newPostContent.length, POST_MAX_LENGTH)) return;
@@ -71,6 +82,18 @@ const PostsFeed = () => {
             <h2 className="text-handwritten-2xl md:text-handwritten-4xl font-bold marker-underline-blue">
               The Feed
             </h2>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search posts..."
+              className="w-full bg-background sketch-border-sm pl-10 pr-4 py-2 font-comic text-sm focus:outline-none"
+            />
           </div>
           
           {/* Filters */}
@@ -192,8 +215,8 @@ const PostsFeed = () => {
           <div className="text-center py-12 md:py-16 sketch-border bg-card">
             <p className="font-hand text-2xl md:text-3xl mb-4">🦗 *cricket sounds*</p>
             <p className="font-comic text-base md:text-lg text-muted-foreground mb-4">
-              {filterTags.length > 0 || filterUsername
-                ? "No posts match your filters. Try different ones!"
+              {filterTags.length > 0 || filterUsername || searchQuery
+                ? "No posts match your search/filters. Try different ones!"
                 : "No posts yet. Be the first to break the silence!"}
             </p>
             {!user && (
@@ -219,10 +242,21 @@ const PostsFeed = () => {
         )}
 
         {/* Load More */}
-        {posts.length > 0 && (
+        {posts.length > 0 && hasMore && (
           <div className="text-center mt-6 md:mt-8">
-            <button className="btn-sketch text-base md:text-xl">
-              Load more chaos ↓
+            <button 
+              onClick={loadMorePosts}
+              disabled={loadingMore}
+              className="btn-sketch text-base md:text-xl disabled:opacity-50 flex items-center gap-2 mx-auto"
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Load more chaos ↓'
+              )}
             </button>
           </div>
         )}

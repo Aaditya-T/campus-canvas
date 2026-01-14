@@ -2,6 +2,7 @@ import Navigation from "@/components/Navigation";
 import HeroSection from "@/components/HeroSection";
 import Footer from "@/components/Footer";
 import DashboardCard from "@/components/DashboardCard";
+import { useAuth } from "@/hooks/useAuth";
 import { Heart, Users, Download, Clock } from "lucide-react";
 
 // Mock preview data
@@ -24,10 +25,26 @@ const popularResources = [
 ];
 
 const Index = () => {
+  const { profile } = useAuth();
+  const isPending = profile?.status === 'pending';
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <main>
+        {/* Pending Verification Banner */}
+        {isPending && (
+          <div className="bg-yellow-500/20 border-b-2 border-yellow-500 p-4">
+            <div className="container mx-auto text-center">
+              <p className="font-comic text-sm md:text-base">
+                ⏳ Your account is pending verification. You'll receive an email once your account has been approved.
+                {!profile.submitted_at && (
+                  <span> Please <a href="/verification" className="underline font-bold">upload your verification documents</a> to complete registration.</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
         <HeroSection />
         
         {/* Dashboard Cards Section */}

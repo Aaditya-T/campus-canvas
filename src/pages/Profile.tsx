@@ -238,6 +238,47 @@ const Profile = () => {
                 />
               </div>
 
+              {/* Verification Status */}
+              {profile?.status && (
+                <div>
+                  <label className="font-comic text-sm text-ink/80 block mb-1">
+                    Verification Status
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {profile.status === 'pending' && (
+                      <span className="px-3 py-1 sketch-border-sm bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 font-comic text-sm">
+                        ⏳ Pending Review
+                      </span>
+                    )}
+                    {profile.status === 'approved' && (
+                      <span className="px-3 py-1 sketch-border-sm bg-green-500/20 text-green-700 dark:text-green-400 font-comic text-sm">
+                        ✓ Approved
+                      </span>
+                    )}
+                    {profile.status === 'rejected' && (
+                      <span className="px-3 py-1 sketch-border-sm bg-red-500/20 text-red-700 dark:text-red-400 font-comic text-sm">
+                        ✗ Rejected
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Gender (read-only if approved) */}
+              {profile?.gender && (
+                <div>
+                  <label className="font-comic text-sm text-ink/80 block mb-1">
+                    Gender
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.gender}
+                    disabled
+                    className="w-full sketch-border bg-muted px-4 py-3 font-comic text-muted-foreground cursor-not-allowed"
+                  />
+                </div>
+              )}
+
               {/* Save Button */}
               <button
                 onClick={handleSave}

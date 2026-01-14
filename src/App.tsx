@@ -13,7 +13,12 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import PostPage from "./pages/PostPage";
+import VerificationUpload from "./pages/VerificationUpload";
+import CheckEmail from "./pages/CheckEmail";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
+import VerificationPrompt from "./components/VerificationPrompt";
 
 const queryClient = new QueryClient();
 
@@ -26,17 +31,77 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/feed" element={<Feed />} />
-            <Route path="/post/:postId" element={<PostPage />} />
-            <Route path="/chatrooms" element={<Chatrooms />} />
-            <Route path="/confessions" element={<Confessions />} />
-            <Route path="/resources" element={<Resources />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/check-email" element={<CheckEmail />} />
+            <Route 
+              path="/verification" 
+              element={
+                <ProtectedRoute requireApproved={false}>
+                  <VerificationUpload />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/feed" 
+              element={
+                <ProtectedRoute>
+                  <Feed />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/post/:postId" 
+              element={
+                <ProtectedRoute>
+                  <PostPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/chatrooms" 
+              element={
+                <ProtectedRoute>
+                  <Chatrooms />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/confessions" 
+              element={
+                <ProtectedRoute>
+                  <Confessions />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/resources" 
+              element={
+                <ProtectedRoute>
+                  <Resources />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute requireApproved={false}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="/user/:username" element={<UserProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <VerificationPrompt />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

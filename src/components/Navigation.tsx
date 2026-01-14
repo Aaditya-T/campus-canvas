@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, MessageCircle, Eye, PenTool, BookOpen, LogIn, LogOut, User } from 'lucide-react';
+import { Menu, X, MessageCircle, Eye, PenTool, BookOpen, LogIn, LogOut, User, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import GlobalSearch from './GlobalSearch';
 
@@ -8,7 +8,7 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, signOut, loading, isAdmin } = useAuth();
 
   const navItems = [
     { label: 'Feed', to: '/feed', icon: PenTool },
@@ -61,6 +61,16 @@ const Navigation = () => {
               <div className="w-8 h-8 sketch-border animate-pulse bg-muted" />
             ) : user ? (
               <div className="flex items-center gap-3">
+                {isAdmin && (
+                  <Link 
+                    to="/admin" 
+                    className="btn-sketch py-2 px-3 text-sm flex items-center gap-1"
+                    title="Admin Dashboard"
+                  >
+                    <Shield size={16} strokeWidth={2.5} />
+                    <span className="hidden lg:inline">Admin</span>
+                  </Link>
+                )}
                 <Link 
                   to="/profile" 
                   className="flex items-center gap-2 btn-sketch py-2 px-3"
@@ -119,6 +129,16 @@ const Navigation = () => {
               ))}
               {user ? (
                 <>
+                  {isAdmin && (
+                    <Link 
+                      to="/admin"
+                      className="btn-sketch py-3 text-center flex items-center justify-center gap-2"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Shield size={18} strokeWidth={2.5} />
+                      <span className="font-comic">Admin Dashboard</span>
+                    </Link>
+                  )}
                   <Link 
                     to="/profile"
                     className="btn-sketch py-3 text-center mt-2 border-t-2 border-dashed border-foreground/30"

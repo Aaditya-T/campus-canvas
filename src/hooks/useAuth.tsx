@@ -2,6 +2,9 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export type VerificationStatus = 'pending' | 'approved' | 'rejected';
+export type GenderType = 'he/him' | 'she/her' | 'they/them';
+
 interface Profile {
   id: string;
   user_id: string;
@@ -9,6 +12,9 @@ interface Profile {
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  status?: VerificationStatus;
+  gender?: GenderType | null;
+  submitted_at?: string | null;
 }
 
 interface AuthContextType {
@@ -16,6 +22,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string, username?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -30,6 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -41,6 +49,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!error && data) {
       setProfile(data);
     }
+
+    // Check if user is admin
+    const { data: adminCheck } = await supabase.rpc('is_admin', {
+      p_user_id: userId
+    });
+    setIsAdmin(adminCheck || false);
   };
 
   const refreshProfile = async () => {
@@ -134,6 +148,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       session,
       profile,
       loading,
+      isAdmin,
       signUp,
       signIn,
       signOut,

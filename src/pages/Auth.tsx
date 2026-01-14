@@ -100,10 +100,10 @@ const Auth = () => {
           }
         } else {
           toast({
-            title: "Welcome to Campus Chaos!",
-            description: "Account created successfully."
+            title: "Account created!",
+            description: "Please check your email to verify your account."
           });
-          navigate('/');
+          navigate('/check-email');
         }
       }
     } finally {
