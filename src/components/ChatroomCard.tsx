@@ -57,9 +57,9 @@ const ChatroomCard = ({
           <MessageCircle size={16} strokeWidth={2.5} />
           {messages}
         </span>
-        <button className="ml-auto btn-sketch py-1 px-3 text-sm">
-          Join →
-        </button>
+        <span className="ml-auto font-comic text-sm text-muted-foreground">
+          {isActive ? 'Active' : 'New'}
+        </span>
       </div>
     </div>
   );

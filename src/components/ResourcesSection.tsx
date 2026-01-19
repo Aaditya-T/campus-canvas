@@ -1,8 +1,12 @@
-import { useState } from 'react';
-import { Upload, Search, BookOpen, Filter } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Upload, Search, BookOpen, Filter, Loader2, X } from 'lucide-react';
 import ResourceCard from './ResourceCard';
+import { useResources, type Resource, type ResourceType, type Branch } from '@/hooks/useResources';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
 
-const branches = [
+const branches: Branch[] = [
   'Computer Science',
   'Electronics',
   'Mechanical',
@@ -15,95 +19,162 @@ const branches = [
 
 const semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
-const resourceTypes = ['PYQ', 'Notes', 'Book', 'Slides'];
+const resourceTypes: ResourceType[] = ['PYQ', 'Notes', 'Book', 'Slides'];
 
-const mockResources = [
-  {
-    id: 1,
-    title: 'Data Structures PYQ 2023',
-    branch: 'Computer Science',
-    semester: '3',
-    type: 'PYQ',
-    author: 'Anonymous',
-    downloads: 234,
-    likes: 45,
-    uploadedAt: '2 days ago',
-  },
-  {
-    id: 2,
-    title: 'Digital Electronics Notes Ch 1-5',
-    branch: 'Electronics',
-    semester: '4',
-    type: 'Notes',
-    author: 'TechNerd42',
-    downloads: 189,
-    likes: 67,
-    uploadedAt: '1 week ago',
-  },
-  {
-    id: 3,
-    title: 'Engineering Mathematics III',
-    branch: 'Computer Science',
-    semester: '3',
-    type: 'Book',
-    author: 'MathWhiz',
-    downloads: 456,
-    likes: 123,
-    uploadedAt: '3 days ago',
-  },
-  {
-    id: 4,
-    title: 'DBMS Lecture Slides',
-    branch: 'Information Technology',
-    semester: '5',
-    type: 'Slides',
-    author: 'ProfHelper',
-    downloads: 321,
-    likes: 89,
-    uploadedAt: '5 days ago',
-  },
-  {
-    id: 5,
-    title: 'Thermodynamics PYQ Collection',
-    branch: 'Mechanical',
-    semester: '4',
-    type: 'PYQ',
-    author: 'MechHead',
-    downloads: 156,
-    likes: 34,
-    uploadedAt: '1 day ago',
-  },
-  {
-    id: 6,
-    title: 'Operating Systems Complete Notes',
-    branch: 'Computer Science',
-    semester: '5',
-    type: 'Notes',
-    author: 'OSMaster',
-    downloads: 567,
-    likes: 201,
-    uploadedAt: '4 days ago',
-  },
-];
+const RESOURCES_PER_PAGE = 20;
 
 const ResourcesSection = () => {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [filterBranch, setFilterBranch] = useState('');
   const [filterSemester, setFilterSemester] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
 
   // Upload form state
   const [uploadBranch, setUploadBranch] = useState('');
   const [uploadSemester, setUploadSemester] = useState('');
-  const [uploadType, setUploadType] = useState('');
+  const [uploadType, setUploadType] = useState<ResourceType | ''>('');
   const [resourceName, setResourceName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
-  const filteredResources = mockResources.filter((resource) => {
-    const matchesBranch = !filterBranch || resource.branch === filterBranch;
-    const matchesSemester = !filterSemester || resource.semester === filterSemester;
-    const matchesSearch = !searchQuery || resource.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesBranch && matchesSemester && matchesSearch;
-  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { fetchResources, uploadResource, loading } = useResources();
+
+  // Fetch resources when filters change
+  useEffect(() => {
+    loadResources(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterBranch, filterSemester, searchQuery]);
+
+  const loadResources = async (reset = false) => {
+    if (reset) {
+      setOffset(0);
+      setHasMore(true);
+    }
+
+    const newOffset = reset ? 0 : offset;
+    const fetchedResources = await fetchResources({
+      branch: filterBranch || undefined,
+      semester: filterSemester || undefined,
+      searchQuery: searchQuery || undefined,
+      limit: RESOURCES_PER_PAGE,
+      offset: newOffset,
+    });
+
+    if (reset) {
+      setResources(fetchedResources);
+    } else {
+      setResources((prev) => [...prev, ...fetchedResources]);
+    }
+
+    setHasMore(fetchedResources.length === RESOURCES_PER_PAGE);
+    setOffset(newOffset + fetchedResources.length);
+  };
+
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileSelect(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!user) {
+      toast({
+        title: 'Not logged in',
+        description: 'Please log in to upload resources',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!uploadBranch || !uploadSemester || !uploadType || !resourceName.trim() || !selectedFile) {
+      toast({
+        title: 'Missing information',
+        description: 'Please fill in all fields and select a file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadProgress(true);
+    const { error } = await uploadResource(
+      selectedFile,
+      resourceName.trim(),
+      uploadBranch,
+      uploadSemester,
+      uploadType as ResourceType
+    );
+
+    setUploadProgress(false);
+
+    if (!error) {
+      // Reset form
+      setUploadBranch('');
+      setUploadSemester('');
+      setUploadType('');
+      setResourceName('');
+      setSelectedFile(null);
+      setShowUploadForm(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Reload resources
+      await loadResources(true);
+    }
+  };
+
+  // Validate and set file when selected
+  const handleFileSelect = async (file: File) => {
+    // Import validation dynamically
+    const { validateFile } = await import('@/lib/fileValidation');
+    const validation = await validateFile(file);
+    
+    if (!validation.valid) {
+      toast({
+        title: 'Invalid file',
+        description: validation.error || 'File validation failed',
+        variant: 'destructive',
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleLoadMore = () => {
+    loadResources(false);
+  };
 
   return (
     <section className="py-16 px-4 bg-paper/50">
@@ -217,7 +288,7 @@ const ResourcesSection = () => {
                 <label className="block font-comic text-sm text-muted-foreground mb-1">Type *</label>
                 <select
                   value={uploadType}
-                  onChange={(e) => setUploadType(e.target.value)}
+                  onChange={(e) => setUploadType(e.target.value as ResourceType)}
                   className="w-full px-3 py-2 bg-paper border-2 border-ink/40 rounded-sm font-comic text-ink focus:outline-none focus:border-accent-blue"
                 >
                   <option value="">Select Type</option>
@@ -235,55 +306,156 @@ const ResourcesSection = () => {
                   value={resourceName}
                   onChange={(e) => setResourceName(e.target.value)}
                   placeholder="e.g., DSA Notes Ch 3"
+                  maxLength={200}
                   className="w-full px-3 py-2 bg-paper border-2 border-ink/40 rounded-sm font-comic text-ink placeholder:text-muted-foreground focus:outline-none focus:border-accent-blue"
                 />
               </div>
             </div>
 
             {/* File Upload Area */}
-            <div className="border-2 border-dashed border-ink/40 rounded-sm p-6 text-center mb-4 bg-paper/50 hover:bg-paper transition-colors cursor-pointer">
-              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-              <p className="font-comic text-muted-foreground">
-                Drag & drop your file here or <span className="text-accent-blue underline">browse</span>
-              </p>
-              <p className="font-comic text-xs text-muted-foreground mt-1">PDF, DOC, PPT up to 10MB</p>
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-sm p-6 text-center mb-4 transition-colors cursor-pointer ${
+                dragActive
+                  ? 'border-accent-blue bg-accent-blue/10'
+                  : 'border-ink/40 bg-paper/50 hover:bg-paper'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+              {selectedFile ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-comic text-ink">{selectedFile.name}</span>
+                    <span className="font-comic text-xs text-muted-foreground">
+                      ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="text-muted-foreground hover:text-ink"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                  <p className="font-comic text-muted-foreground">
+                    Drag & drop your file here or <span className="text-accent-blue underline">browse</span>
+                  </p>
+                  <p className="font-comic text-xs text-muted-foreground mt-1">PDF, DOC, DOCX, PPT, PPTX up to 10MB</p>
+                </>
+              )}
             </div>
 
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setShowUploadForm(false)}
+                onClick={() => {
+                  setShowUploadForm(false);
+                  setSelectedFile(null);
+                  setUploadBranch('');
+                  setUploadSemester('');
+                  setUploadType('');
+                  setResourceName('');
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
                 className="btn-sketch px-4 py-2 font-comic"
+                disabled={uploadProgress}
               >
                 Cancel
               </button>
-              <button className="btn-sketch px-6 py-2 bg-accent-blue/20 hover:bg-accent-blue/30 font-hand text-lg">
-                Upload! 🚀
+              <button
+                onClick={handleUpload}
+                disabled={uploadProgress || !uploadBranch || !uploadSemester || !uploadType || !resourceName.trim() || !selectedFile}
+                className="btn-sketch px-6 py-2 bg-accent-blue/20 hover:bg-accent-blue/30 font-hand text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {uploadProgress ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  'Upload! 🚀'
+                )}
               </button>
             </div>
           </div>
         )}
 
         {/* Resources Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredResources.map((resource) => (
-            <ResourceCard key={resource.id} {...resource} />
-          ))}
-        </div>
-
-        {filteredResources.length === 0 && (
+        {loading && resources.length === 0 ? (
           <div className="text-center py-12">
-            <p className="font-hand text-2xl text-muted-foreground">No resources found 😅</p>
-            <p className="font-comic text-muted-foreground mt-2">Try adjusting your filters or be the first to share!</p>
+            <Loader2 size={32} className="animate-spin mx-auto mb-2 text-primary" />
+            <p className="font-comic text-muted-foreground">Loading resources...</p>
           </div>
-        )}
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {resources.map((resource) => (
+                <ResourceCard
+                  key={resource.id}
+                  id={resource.id}
+                  title={resource.title}
+                  branch={resource.branch}
+                  semester={resource.semester}
+                  type={resource.type}
+                  author={resource.user_profile?.display_name || resource.user_profile?.username || 'Anonymous'}
+                  downloads={resource.downloads}
+                  likes={resource.likes_count || 0}
+                  uploadedAt={formatDistanceToNow(new Date(resource.created_at), { addSuffix: true })}
+                  isLiked={resource.is_liked}
+                  userId={resource.user_id}
+                  onDelete={() => loadResources(true)}
+                />
+              ))}
+            </div>
 
-        {/* Load More */}
-        {filteredResources.length > 0 && (
-          <div className="text-center mt-8">
-            <button className="btn-sketch px-8 py-3 font-hand text-xl bg-ink/5 hover:bg-ink/10">
-              Load More Resources ↓
-            </button>
-          </div>
+            {resources.length === 0 && (
+              <div className="text-center py-12">
+                <p className="font-hand text-2xl text-muted-foreground">No resources found 😅</p>
+                <p className="font-comic text-muted-foreground mt-2">Try adjusting your filters or be the first to share!</p>
+              </div>
+            )}
+
+            {/* Load More */}
+            {hasMore && resources.length > 0 && (
+              <div className="text-center mt-8">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                  className="btn-sketch px-8 py-3 font-hand text-xl bg-ink/5 hover:bg-ink/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Load More Resources ↓'
+                  )}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

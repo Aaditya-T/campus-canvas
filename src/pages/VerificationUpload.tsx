@@ -66,6 +66,28 @@ const VerificationUpload = () => {
     };
   }, [stream]);
 
+  // Attach stream once the video element is mounted
+  useEffect(() => {
+    if (!isCameraActive || !stream || !videoRef.current) return;
+
+    const video = videoRef.current;
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+
+    const handleLoadedMetadata = () => {
+      void video.play().catch(() => {
+        // Autoplay can be blocked; user can retry by toggling the camera.
+      });
+    };
+
+    video.onloadedmetadata = handleLoadedMetadata;
+
+    return () => {
+      video.onloadedmetadata = null;
+    };
+  }, [isCameraActive, stream]);
+
   const handleFileSelect = (
     file: File | null,
     type: 'idCard' | 'admissionSlip' | 'selfie'
@@ -138,10 +160,6 @@ const VerificationUpload = () => {
       
       setStream(mediaStream);
       setIsCameraActive(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
     } catch (error) {
       console.error('Error accessing camera:', error);
       toast({
@@ -310,7 +328,7 @@ const VerificationUpload = () => {
 
       toast({
         title: "Documents submitted!",
-        description: "Your verification documents have been submitted for review. You'll receive an email once reviewed."
+        description: "Your verification documents have been submitted for review. Please check back within 24 hours for approval status."
       });
     } catch (error) {
       console.error('Error uploading documents:', error);
@@ -331,7 +349,7 @@ const VerificationUpload = () => {
           <div className="text-6xl mb-4">⏳</div>
           <h1 className="font-hand text-3xl md:text-4xl mb-4">Verification Pending</h1>
           <p className="font-comic text-lg text-muted-foreground mb-6">
-            Your documents have been submitted for review. We'll send you an email once your account has been approved.
+            Your documents have been submitted for review. Please check back within 24 hours for your approval status.
           </p>
           <p className="font-comic text-sm text-muted-foreground">
             <strong>Note:</strong> All uploaded documents will be permanently deleted after review for your privacy.

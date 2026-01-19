@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Feed from "./pages/Feed";
 import Chatrooms from "./pages/Chatrooms";
+import ChatroomDetails from "./pages/ChatroomDetails";
 import Confessions from "./pages/Confessions";
 import Resources from "./pages/Resources";
 import Auth from "./pages/Auth";
@@ -62,6 +63,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Chatrooms />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/chatrooms/:chatroomId" 
+              element={
+                <ProtectedRoute>
+                  <ChatroomDetails />
                 </ProtectedRoute>
               } 
             />

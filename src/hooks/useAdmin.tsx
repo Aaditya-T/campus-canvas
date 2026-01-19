@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
-import { sendApprovalEmail, sendRejectionEmail } from '@/lib/emailNotifications';
 
 export interface PendingUser {
   id: string;
@@ -93,7 +92,7 @@ export const useAdmin = () => {
       // Get user profile to find document paths
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id_card_path, admission_slip_path, selfie_path')
+        .select('id_card_path, admission_slip_path, selfie_path, display_name, username')
         .eq('user_id', userId)
         .eq('status', 'pending')
         .single();
@@ -119,15 +118,9 @@ export const useAdmin = () => {
 
       if (approveError) throw approveError;
 
-      // Send approval email (async, don't wait for it)
-      // Get user email - we'll need to fetch it or pass it as parameter
-      // For now, we'll skip email if we can't get it easily
-      // In production, you'd fetch the email from auth.users table via admin API
-      sendApprovalEmail('user@example.com', 'User').catch(console.error);
-
       toast({
         title: "User approved",
-        description: "User has been approved and documents deleted"
+        description: "User has been approved and documents deleted. They can now access the platform."
       });
 
       return { error: null };
@@ -154,7 +147,7 @@ export const useAdmin = () => {
       // Get user profile to find document paths
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id_card_path, admission_slip_path, selfie_path')
+        .select('id_card_path, admission_slip_path, selfie_path, display_name, username')
         .eq('user_id', userId)
         .eq('status', 'pending')
         .single();
@@ -178,11 +171,6 @@ export const useAdmin = () => {
       });
 
       if (rejectError) throw rejectError;
-
-      // Send rejection email (async, don't wait for it)
-      // Note: User is deleted, so we can't fetch email easily
-      // In production, fetch email before deleting or use admin API
-      sendRejectionEmail('user@example.com').catch(console.error);
 
       toast({
         title: "User rejected",

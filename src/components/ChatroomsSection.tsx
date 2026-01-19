@@ -1,62 +1,55 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChatroomCard from './ChatroomCard';
-import { Plus, Search } from 'lucide-react';
-
-const chatrooms = [
-  {
-    name: "Night Owls Club",
-    description: "For those who study at 3am and question their life choices together",
-    members: 234,
-    messages: 1.2,
-    isActive: true,
-    emoji: "🦉",
-    color: "blue" as const,
-  },
-  {
-    name: "Meme Central",
-    description: "Post memes, get memes, become the meme. No normie stuff allowed.",
-    members: 567,
-    messages: 4.8,
-    isActive: true,
-    emoji: "😂",
-    color: "yellow" as const,
-  },
-  {
-    name: "Study Buddies",
-    description: "Find study partners, share notes, cry about exams together",
-    members: 189,
-    messages: 892,
-    emoji: "📚",
-    color: "green" as const,
-  },
-  {
-    name: "Relationship Drama",
-    description: "Vent about your situationship. We won't judge (much)",
-    members: 423,
-    messages: 3.1,
-    isActive: true,
-    emoji: "💔",
-    color: "pink" as const,
-  },
-  {
-    name: "Foodie Corner",
-    description: "Best cheap eats, cafeteria reviews, and midnight snack recommendations",
-    members: 312,
-    messages: 1.5,
-    emoji: "🍜",
-    color: "yellow" as const,
-  },
-  {
-    name: "Random Chaos",
-    description: "Literally anything goes. Brain dump central.",
-    members: 789,
-    messages: 6.7,
-    isActive: true,
-    emoji: "🌀",
-    color: "blue" as const,
-  },
-];
+import CreateChatroomRequestModal from './CreateChatroomRequestModal';
+import { Plus, Search, Loader2 } from 'lucide-react';
+import { useChatrooms } from '@/hooks/useChatrooms';
+import { useAuth } from '@/hooks/useAuth';
+import { Input } from '@/components/ui/input';
 
 const ChatroomsSection = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { fetchChatrooms, loading } = useChatrooms();
+  const [chatrooms, setChatrooms] = useState<any[]>([]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadChatrooms = async () => {
+      const rooms = await fetchChatrooms();
+      setChatrooms(rooms);
+    };
+    loadChatrooms();
+  }, [fetchChatrooms]);
+
+  const filteredChatrooms = chatrooms.filter((room) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      room.title.toLowerCase().includes(query) ||
+      room.description.toLowerCase().includes(query) ||
+      room.emoji.includes(query)
+    );
+  });
+
+  const getColor = (index: number): 'yellow' | 'blue' | 'pink' | 'green' => {
+    const colors: ('yellow' | 'blue' | 'pink' | 'green')[] = ['yellow', 'blue', 'pink', 'green'];
+    return colors[index % colors.length];
+  };
+
+  const handleCreateClick = () => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    setShowCreateModal(true);
+  };
+
+  const handleCardClick = (chatroomId: string) => {
+    navigate(`/chatrooms/${chatroomId}`);
+  };
+
   return (
     <section id="chatrooms" className="py-16 bg-muted/50">
       <div className="container mx-auto px-4">
@@ -74,7 +67,7 @@ const ChatroomsSection = () => {
             </p>
           </div>
           
-          <button className="btn-sketch-accent py-2 px-4 text-lg flex items-center gap-2 shrink-0">
+          <button onClick={handleCreateClick} className="btn-sketch-accent py-2 px-4 text-lg flex items-center gap-2 shrink-0">
             <Plus size={20} strokeWidth={2.5} />
             Create Room
           </button>
@@ -83,32 +76,58 @@ const ChatroomsSection = () => {
         {/* Search */}
         <div className="sketch-border bg-card p-3 mb-8 flex items-center gap-3 max-w-md">
           <Search size={20} strokeWidth={2.5} className="text-muted-foreground" />
-          <input
+          <Input
             type="text"
             placeholder="Find your vibe..."
-            className="flex-1 bg-transparent font-comic placeholder:text-muted-foreground focus:outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-transparent font-comic placeholder:text-muted-foreground border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
 
         {/* Chatrooms Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {chatrooms.map((room, index) => (
-            <div
-              key={room.name}
-              className={index % 2 === 0 ? 'tilt-1' : 'tilt-2'}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <ChatroomCard {...room} />
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 size={40} className="animate-spin mx-auto mb-4 text-primary" />
+            <p className="font-comic text-muted-foreground">Loading chatrooms...</p>
+          </div>
+        ) : filteredChatrooms.length === 0 ? (
+          <div className="text-center py-12 sketch-border bg-card">
+            <p className="font-hand text-2xl mb-4">💬</p>
+            <p className="font-comic text-lg text-muted-foreground">
+              {searchQuery ? 'No chatrooms match your search' : 'No chatrooms yet. Be the first to create one!'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredChatrooms.map((room, index) => (
+              <div
+                key={room.id}
+                className={index % 2 === 0 ? 'tilt-1' : 'tilt-2'}
+                style={{ animationDelay: `${index * 100}ms` }}
+                onClick={() => handleCardClick(room.id)}
+              >
+                <ChatroomCard
+                  name={room.title}
+                  description={room.description}
+                  members={room.member_count || 0}
+                  messages={room.message_count || 0}
+                  isActive={room.message_count > 0}
+                  emoji={room.emoji}
+                  color={getColor(index)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* View All */}
-        <div className="text-center mt-8">
-          <button className="btn-sketch text-xl">
-            Explore all rooms →
-          </button>
-        </div>
+        <CreateChatroomRequestModal
+          open={showCreateModal}
+          onOpenChange={setShowCreateModal}
+          onSuccess={() => {
+            fetchChatrooms().then(setChatrooms);
+          }}
+        />
       </div>
     </section>
   );
